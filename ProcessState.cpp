@@ -71,7 +71,7 @@ sp<ProcessState> ProcessState::self()
     if (gProcess != nullptr) {
         return gProcess;
     }
-    gProcess = new ProcessState(DEFAULT_BINDER_VM_SIZE);
+    gProcess = new ProcessState(DEFAULT_BINDER_VM_SIZE, "/dev/hwbinder");
     return gProcess;
 }
 
@@ -88,7 +88,27 @@ sp<ProcessState> ProcessState::initWithMmapSize(size_t mmap_size) {
         return gProcess;
     }
 
-    gProcess = new ProcessState(mmap_size);
+    gProcess = new ProcessState(mmap_size, "/dev/hwbinder");
+    return gProcess;
+}
+
+sp<ProcessState> ProcessState::initWithDriver(const char* driver) {
+    Mutex::Autolock _l(gProcessMutex);
+    if (gProcess != nullptr) {
+        // Allow for initWithDriver to be called repeatedly with the same
+        // driver.
+        if (!strcmp(gProcess->getDriverName().c_str(), driver)) {
+            return gProcess;
+        }
+        LOG_ALWAYS_FATAL("ProcessState was already initialized.");
+    }
+
+    if (access(driver, R_OK) == -1) {
+        ALOGE("Binder driver %s is unavailable. Using /dev/hwbinder instead.", driver);
+        driver = "/dev/hwbinder";
+    }
+
+    gProcess = new ProcessState(DEFAULT_BINDER_VM_SIZE, driver);
     return gProcess;
 }
 
@@ -395,9 +415,13 @@ void ProcessState::giveThreadPoolName() {
     androidSetThreadName( makeBinderThreadName().string() );
 }
 
-static int open_driver()
+String8 ProcessState::getDriverName() {
+    return mDriverName;
+}
+
+static int open_driver(const char *driver)
 {
-    int fd = open("/dev/hwbinder", O_RDWR | O_CLOEXEC);
+    int fd = open(driver, O_RDWR | O_CLOEXEC);
     if (fd >= 0) {
         int vers = 0;
         status_t result = ioctl(fd, BINDER_VERSION, &vers);
@@ -417,13 +441,14 @@ static int open_driver()
             ALOGE("Binder ioctl to set max threads failed: %s", strerror(errno));
         }
     } else {
-        ALOGW("Opening '/dev/hwbinder' failed: %s\n", strerror(errno));
+        ALOGW("Opening '%s' failed: %s\n", driver, strerror(errno));
     }
     return fd;
 }
 
-ProcessState::ProcessState(size_t mmap_size)
-    : mDriverFD(open_driver())
+ProcessState::ProcessState(size_t mmap_size, const char *driver)
+    : mDriverName(String8(driver))
+    , mDriverFD(open_driver(driver))
     , mVMStart(MAP_FAILED)
     , mThreadCountLock(PTHREAD_MUTEX_INITIALIZER)
     , mThreadCountDecrement(PTHREAD_COND_INITIALIZER)
@@ -444,9 +469,10 @@ ProcessState::ProcessState(size_t mmap_size)
         mVMStart = mmap(nullptr, mMmapSize, PROT_READ, MAP_PRIVATE | MAP_NORESERVE, mDriverFD, 0);
         if (mVMStart == MAP_FAILED) {
             // *sigh*
-            ALOGE("Mmapping /dev/hwbinder failed: %s\n", strerror(errno));
+            ALOGE("Mmapping %s failed: %s\n", mDriverName.c_str(), strerror(errno));
             close(mDriverFD);
             mDriverFD = -1;
+            mDriverName.clear();
         }
     }
     else {
