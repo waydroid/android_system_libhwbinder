@@ -31,6 +31,8 @@ extern Vector<int32_t> gTextBuffers;
 // For ProcessState.cpp
 extern Mutex& gProcessMutex;
 extern sp<ProcessState> gProcess;
+extern sp<ProcessState> gHostProcess;
+extern bool gIsHost;
 
 }   // namespace hardware
 }   // namespace android

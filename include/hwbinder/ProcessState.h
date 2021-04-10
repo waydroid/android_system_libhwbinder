@@ -40,6 +40,9 @@ public:
     // Note: don't call self() or selfOrNull() before initWithMmapSize()
     static  sp<ProcessState>    initWithMmapSize(size_t mmapSize); // size in bytes
 
+    static  bool                isHostBinder();
+    static  void                switchToHostBinder(bool value);
+
             void                setContextObject(const sp<IBinder>& object);
             sp<IBinder>         getContextObject(const sp<IBinder>& caller);
 
