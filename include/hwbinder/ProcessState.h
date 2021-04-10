@@ -39,7 +39,6 @@ public:
     static  sp<ProcessState>    selfOrNull();
     // Note: don't call self() or selfOrNull() before initWithMmapSize()
     static  sp<ProcessState>    initWithMmapSize(size_t mmapSize); // size in bytes
-    static  sp<ProcessState>    initWithDriver(const char *driver);
 
             void                setContextObject(const sp<IBinder>& object);
             sp<IBinder>         getContextObject(const sp<IBinder>& caller);
@@ -70,8 +69,6 @@ public:
             size_t              getMaxThreads();
             void                giveThreadPoolName();
 
-            String8             getDriverName();
-
             ssize_t             getKernelReferences(size_t count, uintptr_t* buf);
                                 // This refcount includes:
                                 // 1. Strong references to the node by this  and other processes
@@ -95,7 +92,7 @@ public:
 
 private:
     friend class IPCThreadState;
-            explicit            ProcessState(size_t mmap_size, const char* driver);
+            explicit            ProcessState(size_t mmap_size);
                                 ~ProcessState();
 
                                 ProcessState(const ProcessState& o);
@@ -109,7 +106,6 @@ private:
 
             handle_entry*       lookupHandleLocked(int32_t handle);
 
-            String8             mDriverName;
             int                 mDriverFD;
             void*               mVMStart;
 
