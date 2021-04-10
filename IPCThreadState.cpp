@@ -276,34 +276,66 @@ static const void* printCommand(TextOutput& out, const void* _cmd)
 
 static pthread_mutex_t gTLSMutex = PTHREAD_MUTEX_INITIALIZER;
 static bool gHaveTLS = false;
+static bool gHostHaveTLS = false;
 static pthread_key_t gTLS = 0;
+static pthread_key_t gHostTLS = 0;
 static bool gShutdown = false;
+static bool gHostShutdown = false;
 
 IPCThreadState* IPCThreadState::self()
 {
-    if (gHaveTLS) {
 restart:
-        const pthread_key_t k = gTLS;
-        IPCThreadState* st = (IPCThreadState*)pthread_getspecific(k);
-        if (st) return st;
-        return new IPCThreadState;
+    if (ProcessState::isHostBinder()) {
+        if (gHostHaveTLS) {
+            const pthread_key_t k = gHostTLS;
+            IPCThreadState* st = (IPCThreadState*)pthread_getspecific(k);
+            if (st) return st;
+            return new IPCThreadState;
+        }
+    } else {
+        if (gHaveTLS) {
+            const pthread_key_t k = gTLS;
+            IPCThreadState* st = (IPCThreadState*)pthread_getspecific(k);
+            if (st) return st;
+            return new IPCThreadState;
+        }
     }
 
-    if (gShutdown) {
-        ALOGW("Calling IPCThreadState::self() during shutdown is dangerous, expect a crash.\n");
-        return nullptr;
+    if (ProcessState::isHostBinder()) {
+        if (gHostShutdown) {
+            ALOGW("Calling IPCThreadState::self() during shutdown is dangerous, expect a crash.\n");
+            return nullptr;
+        }
+    } else {
+        if (gShutdown) {
+            ALOGW("Calling IPCThreadState::self() during shutdown is dangerous, expect a crash.\n");
+            return nullptr;
+        }
     }
 
     pthread_mutex_lock(&gTLSMutex);
-    if (!gHaveTLS) {
-        int key_create_value = pthread_key_create(&gTLS, threadDestructor);
-        if (key_create_value != 0) {
-            pthread_mutex_unlock(&gTLSMutex);
-            ALOGW("IPCThreadState::self() unable to create TLS key, expect a crash: %s\n",
-                    strerror(key_create_value));
-            return nullptr;
+    if (ProcessState::isHostBinder()) {
+        if (!gHostHaveTLS) {
+            int key_create_value = pthread_key_create(&gHostTLS, threadDestructor);
+            if (key_create_value != 0) {
+                pthread_mutex_unlock(&gTLSMutex);
+                ALOGW("IPCThreadState::self() unable to create TLS key, expect a crash: %s\n",
+                        strerror(key_create_value));
+                return nullptr;
+            }
+            gHostHaveTLS = true;
         }
-        gHaveTLS = true;
+    } else {
+        if (!gHaveTLS) {
+            int key_create_value = pthread_key_create(&gTLS, threadDestructor);
+            if (key_create_value != 0) {
+                pthread_mutex_unlock(&gTLSMutex);
+                ALOGW("IPCThreadState::self() unable to create TLS key, expect a crash: %s\n",
+                        strerror(key_create_value));
+                return nullptr;
+            }
+            gHaveTLS = true;
+        }
     }
     pthread_mutex_unlock(&gTLSMutex);
     goto restart;
@@ -311,27 +343,50 @@ restart:
 
 IPCThreadState* IPCThreadState::selfOrNull()
 {
-    if (gHaveTLS) {
-        const pthread_key_t k = gTLS;
-        IPCThreadState* st = (IPCThreadState*)pthread_getspecific(k);
-        return st;
+    if (ProcessState::isHostBinder()) {
+        if (gHostHaveTLS) {
+            const pthread_key_t k = gHostTLS;
+            IPCThreadState* st = (IPCThreadState*)pthread_getspecific(k);
+            return st;
+        }
+    } else {
+        if (gHaveTLS) {
+            const pthread_key_t k = gTLS;
+            IPCThreadState* st = (IPCThreadState*)pthread_getspecific(k);
+            return st;
+        }
     }
     return nullptr;
 }
 
 void IPCThreadState::shutdown()
 {
-    gShutdown = true;
+    if (ProcessState::isHostBinder()) {
+        gHostShutdown = true;
 
-    if (gHaveTLS) {
-        // XXX Need to wait for all thread pool threads to exit!
-        IPCThreadState* st = (IPCThreadState*)pthread_getspecific(gTLS);
-        if (st) {
-            delete st;
-            pthread_setspecific(gTLS, nullptr);
+        if (gHostHaveTLS) {
+            // XXX Need to wait for all thread pool threads to exit!
+            IPCThreadState* st = (IPCThreadState*)pthread_getspecific(gHostTLS);
+            if (st) {
+                delete st;
+                pthread_setspecific(gHostTLS, nullptr);
+            }
+            pthread_key_delete(gHostTLS);
+            gHostHaveTLS = false;
         }
-        pthread_key_delete(gTLS);
-        gHaveTLS = false;
+    } else {
+        gShutdown = true;
+
+        if (gHaveTLS) {
+            // XXX Need to wait for all thread pool threads to exit!
+            IPCThreadState* st = (IPCThreadState*)pthread_getspecific(gTLS);
+            if (st) {
+                delete st;
+                pthread_setspecific(gTLS, nullptr);
+            }
+            pthread_key_delete(gTLS);
+            gHaveTLS = false;
+        }
     }
 }
 
@@ -778,7 +833,10 @@ IPCThreadState::IPCThreadState()
       mIsLooper(false),
       mIsPollingThread(false),
       mCallRestriction(mProcess->mCallRestriction) {
-    pthread_setspecific(gTLS, this);
+    if (ProcessState::isHostBinder())
+        pthread_setspecific(gHostTLS, this);
+    else
+        pthread_setspecific(gTLS, this);
     clearCaller();
     mIn.setDataCapacity(256);
     mOut.setDataCapacity(256);

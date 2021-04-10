@@ -68,28 +68,58 @@ protected:
 sp<ProcessState> ProcessState::self()
 {
     Mutex::Autolock _l(gProcessMutex);
-    if (gProcess != nullptr) {
+    if (gIsHost) {
+        if (gHostProcess != nullptr) {
+            return gHostProcess;
+        }
+        gHostProcess = new ProcessState(DEFAULT_BINDER_VM_SIZE);
+        return gHostProcess;
+    } else {
+        if (gProcess != nullptr) {
+            return gProcess;
+        }
+        gProcess = new ProcessState(DEFAULT_BINDER_VM_SIZE);
         return gProcess;
     }
-    gProcess = new ProcessState(DEFAULT_BINDER_VM_SIZE);
-    return gProcess;
 }
 
 sp<ProcessState> ProcessState::selfOrNull() {
     Mutex::Autolock _l(gProcessMutex);
-    return gProcess;
+    if (gIsHost)
+        return gHostProcess;
+    else
+        return gProcess;
 }
 
 sp<ProcessState> ProcessState::initWithMmapSize(size_t mmap_size) {
     Mutex::Autolock _l(gProcessMutex);
-    if (gProcess != nullptr) {
-        LOG_ALWAYS_FATAL_IF(mmap_size != gProcess->getMmapSize(),
-                "ProcessState already initialized with a different mmap size.");
+    if (gIsHost) {
+        if (gHostProcess != nullptr) {
+            LOG_ALWAYS_FATAL_IF(mmap_size != gHostProcess->getMmapSize(),
+                    "ProcessState already initialized with a different mmap size.");
+            return gHostProcess;
+        }
+
+        gHostProcess = new ProcessState(mmap_size);
+        return gHostProcess;
+    } else {
+        if (gProcess != nullptr) {
+            LOG_ALWAYS_FATAL_IF(mmap_size != gProcess->getMmapSize(),
+                    "ProcessState already initialized with a different mmap size.");
+            return gProcess;
+        }
+
+        gProcess = new ProcessState(mmap_size);
         return gProcess;
     }
+}
 
-    gProcess = new ProcessState(mmap_size);
-    return gProcess;
+bool ProcessState::isHostBinder() {
+    return gIsHost;
+}
+
+void ProcessState::switchToHostBinder(bool value) {
+    gIsHost = value;
 }
 
 void ProcessState::setContextObject(const sp<IBinder>& object)
@@ -397,7 +427,10 @@ void ProcessState::giveThreadPoolName() {
 
 static int open_driver()
 {
-    int fd = open("/dev/hwbinder", O_RDWR | O_CLOEXEC);
+    const char *driver = "/dev/hwbinder";
+    if (gIsHost)
+        driver = "/dev/host_hwbinder";
+    int fd = open(driver, O_RDWR | O_CLOEXEC);
     if (fd >= 0) {
         int vers = 0;
         status_t result = ioctl(fd, BINDER_VERSION, &vers);
@@ -417,7 +450,7 @@ static int open_driver()
             ALOGE("Binder ioctl to set max threads failed: %s", strerror(errno));
         }
     } else {
-        ALOGW("Opening '/dev/hwbinder' failed: %s\n", strerror(errno));
+        ALOGW("Opening '%s' failed: %s\n", driver, strerror(errno));
     }
     return fd;
 }
