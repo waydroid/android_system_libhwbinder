@@ -38,8 +38,9 @@ namespace hardware {
 class IPCThreadState
 {
 public:
-    static  IPCThreadState*     self();
-    static  IPCThreadState*     selfOrNull();  // self(), but won't instantiate
+    static  IPCThreadState*     self(bool isHost=false);
+    static  IPCThreadState*     selfOrNull(bool isHost=false);  // self(), but won't instantiate
+    static  IPCThreadState*     selfForHost();
 
             sp<ProcessState>    process();
 
@@ -87,7 +88,7 @@ public:
             status_t            clearDeathNotification( int32_t handle,
                                                         BpHwBinder* proxy);
 
-    static  void                shutdown();
+    static  void                shutdown(bool isHost=false);
 
             // TODO(b/66905301): remove symbol
 private:
@@ -135,7 +136,7 @@ public:
             void addPostCommandTask(const std::function<void(void)>& task);
 
            private:
-            IPCThreadState();
+            IPCThreadState(bool isHost);
             ~IPCThreadState();
 
             status_t            sendReply(const Parcel& reply, uint32_t flags);
@@ -159,7 +160,7 @@ public:
     static  void                freeBuffer(Parcel* parcel,
                                            const uint8_t* data, size_t dataSize,
                                            const binder_size_t* objects, size_t objectsSize,
-                                           void* cookie);
+                                           void* cookie, bool isHost=false);
 
     const   sp<ProcessState>    mProcess;
             Vector<BHwBinder*>    mPendingStrongDerefs;
@@ -182,6 +183,8 @@ public:
             IPCThreadStateBase *mIPCThreadStateBase;
 
             ProcessState::CallRestriction mCallRestriction;
+
+            bool                mIsHost;
 };
 
 }; // namespace hardware

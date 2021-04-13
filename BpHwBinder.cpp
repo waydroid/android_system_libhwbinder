@@ -87,16 +87,17 @@ void BpHwBinder::ObjectManager::kill()
 
 // ---------------------------------------------------------------------------
 
-BpHwBinder::BpHwBinder(int32_t handle)
+BpHwBinder::BpHwBinder(int32_t handle, bool isHostHwBinder)
     : mHandle(handle)
     , mAlive(1)
     , mObitsSent(0)
     , mObituaries(nullptr)
+    , mIsHostHwBinder(isHostHwBinder)
 {
     ALOGV("Creating BpHwBinder %p handle %d\n", this, mHandle);
 
     extendObjectLifetime(OBJECT_LIFETIME_WEAK);
-    IPCThreadState::self()->incWeakHandle(handle, this);
+    IPCThreadState::self(mIsHostHwBinder)->incWeakHandle(handle, this);
 }
 
 status_t BpHwBinder::transact(
@@ -104,7 +105,7 @@ status_t BpHwBinder::transact(
 {
     // Once a binder has died, it will never come back to life.
     if (mAlive) {
-        status_t status = IPCThreadState::self()->transact(
+        status_t status = IPCThreadState::self(mIsHostHwBinder)->transact(
             mHandle, code, data, reply, flags);
         if (status == DEAD_OBJECT) mAlive = 0;
         return status;
@@ -135,7 +136,7 @@ status_t BpHwBinder::linkToDeath(
                 }
                 ALOGV("Requesting death notification: %p handle %d\n", this, mHandle);
                 getWeakRefs()->incWeak(this);
-                IPCThreadState* self = IPCThreadState::self();
+                IPCThreadState* self = IPCThreadState::self(mIsHostHwBinder);
                 self->requestDeathNotification(mHandle, this);
                 self->flushCommands();
             }
@@ -169,7 +170,7 @@ status_t BpHwBinder::unlinkToDeath(
             mObituaries->removeAt(i);
             if (mObituaries->size() == 0) {
                 ALOGV("Clearing death notification: %p handle %d\n", this, mHandle);
-                IPCThreadState* self = IPCThreadState::self();
+                IPCThreadState* self = IPCThreadState::self(mIsHostHwBinder);
                 self->clearDeathNotification(mHandle, this);
                 self->flushCommands();
                 delete mObituaries;
@@ -194,7 +195,7 @@ void BpHwBinder::sendObituary()
     Vector<Obituary>* obits = mObituaries;
     if(obits != nullptr) {
         ALOGV("Clearing sent death notification: %p handle %d\n", this, mHandle);
-        IPCThreadState* self = IPCThreadState::self();
+        IPCThreadState* self = IPCThreadState::self(mIsHostHwBinder);
         self->clearDeathNotification(mHandle, this);
         self->flushCommands();
         mObituaries = nullptr;
@@ -219,7 +220,7 @@ void BpHwBinder::sendObituary()
 // -1 in case of failure.
 ssize_t BpHwBinder::getNodeStrongRefCount()
 {
-    return ProcessState::self()->getStrongRefCountForNodeByHandle(mHandle);
+    return ProcessState::self(mIsHostHwBinder)->getStrongRefCountForNodeByHandle(mHandle);
 }
 
 void BpHwBinder::reportOneDeath(const Obituary& obit)
@@ -262,7 +263,7 @@ BpHwBinder::~BpHwBinder()
 {
     ALOGV("Destroying BpHwBinder %p handle %d\n", this, mHandle);
 
-    IPCThreadState* ipc = IPCThreadState::self();
+    IPCThreadState* ipc = IPCThreadState::self(mIsHostHwBinder);
 
     mLock.lock();
     Vector<Obituary>* obits = mObituaries;
@@ -288,7 +289,7 @@ BpHwBinder::~BpHwBinder()
 void BpHwBinder::onFirstRef()
 {
     ALOGV("onFirstRef BpHwBinder %p handle %d\n", this, mHandle);
-    IPCThreadState* ipc = IPCThreadState::self();
+    IPCThreadState* ipc = IPCThreadState::self(mIsHostHwBinder);
     if (ipc) ipc->incStrongHandle(mHandle, this);
 }
 
@@ -298,7 +299,7 @@ void BpHwBinder::onLastStrongRef(const void* /*id*/)
     IF_ALOGV() {
         printRefs();
     }
-    IPCThreadState* ipc = IPCThreadState::self();
+    IPCThreadState* ipc = IPCThreadState::self(mIsHostHwBinder);
     if (ipc) {
         ipc->decStrongHandle(mHandle);
         ipc->flushCommands();
@@ -308,7 +309,7 @@ void BpHwBinder::onLastStrongRef(const void* /*id*/)
 bool BpHwBinder::onIncStrongAttempted(uint32_t /*flags*/, const void* /*id*/)
 {
     ALOGV("onIncStrongAttempted BpHwBinder %p handle %d\n", this, mHandle);
-    IPCThreadState* ipc = IPCThreadState::self();
+    IPCThreadState* ipc = IPCThreadState::self(mIsHostHwBinder);
     return ipc ? ipc->attemptIncStrongHandle(mHandle) == NO_ERROR : false;
 }
 

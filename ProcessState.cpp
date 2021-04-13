@@ -65,42 +65,42 @@ protected:
     const bool mIsMain;
 };
 
-sp<ProcessState> ProcessState::self()
+sp<ProcessState> ProcessState::self(bool isHost)
 {
     Mutex::Autolock _l(gProcessMutex);
-    if (gIsHost) {
+    if (isHost) {
         if (gHostProcess != nullptr) {
             return gHostProcess;
         }
-        gHostProcess = new ProcessState(DEFAULT_BINDER_VM_SIZE);
+        gHostProcess = new ProcessState(DEFAULT_BINDER_VM_SIZE, isHost);
         return gHostProcess;
     } else {
         if (gProcess != nullptr) {
             return gProcess;
         }
-        gProcess = new ProcessState(DEFAULT_BINDER_VM_SIZE);
+        gProcess = new ProcessState(DEFAULT_BINDER_VM_SIZE, isHost);
         return gProcess;
     }
 }
 
-sp<ProcessState> ProcessState::selfOrNull() {
+sp<ProcessState> ProcessState::selfOrNull(bool isHost) {
     Mutex::Autolock _l(gProcessMutex);
-    if (gIsHost)
+    if (isHost)
         return gHostProcess;
     else
         return gProcess;
 }
 
-sp<ProcessState> ProcessState::initWithMmapSize(size_t mmap_size) {
+sp<ProcessState> ProcessState::initWithMmapSize(size_t mmap_size, bool isHost) {
     Mutex::Autolock _l(gProcessMutex);
-    if (gIsHost) {
+    if (isHost) {
         if (gHostProcess != nullptr) {
             LOG_ALWAYS_FATAL_IF(mmap_size != gHostProcess->getMmapSize(),
                     "ProcessState already initialized with a different mmap size.");
             return gHostProcess;
         }
 
-        gHostProcess = new ProcessState(mmap_size);
+        gHostProcess = new ProcessState(mmap_size, isHost);
         return gHostProcess;
     } else {
         if (gProcess != nullptr) {
@@ -109,17 +109,13 @@ sp<ProcessState> ProcessState::initWithMmapSize(size_t mmap_size) {
             return gProcess;
         }
 
-        gProcess = new ProcessState(mmap_size);
+        gProcess = new ProcessState(mmap_size, isHost);
         return gProcess;
     }
 }
 
 bool ProcessState::isHostBinder() {
-    return gIsHost;
-}
-
-void ProcessState::switchToHostBinder(bool value) {
-    gIsHost = value;
+    return mIsHost;
 }
 
 void ProcessState::setContextObject(const sp<IBinder>& object)
@@ -425,10 +421,10 @@ void ProcessState::giveThreadPoolName() {
     androidSetThreadName( makeBinderThreadName().string() );
 }
 
-static int open_driver()
+static int open_driver(bool isHost)
 {
     const char *driver = "/dev/hwbinder";
-    if (gIsHost)
+    if (isHost)
         driver = "/dev/host_hwbinder";
     int fd = open(driver, O_RDWR | O_CLOEXEC);
     if (fd >= 0) {
@@ -455,8 +451,8 @@ static int open_driver()
     return fd;
 }
 
-ProcessState::ProcessState(size_t mmap_size)
-    : mDriverFD(open_driver())
+ProcessState::ProcessState(size_t mmap_size, bool isHost)
+    : mDriverFD(open_driver(isHost))
     , mVMStart(MAP_FAILED)
     , mThreadCountLock(PTHREAD_MUTEX_INITIALIZER)
     , mThreadCountDecrement(PTHREAD_COND_INITIALIZER)
@@ -471,6 +467,7 @@ ProcessState::ProcessState(size_t mmap_size)
     , mThreadPoolSeq(1)
     , mMmapSize(mmap_size)
     , mCallRestriction(CallRestriction::NONE)
+    , mIsHost(isHost)
 {
     if (mDriverFD >= 0) {
         // mmap the binder, providing a chunk of virtual address space to receive transactions.
