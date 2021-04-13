@@ -35,13 +35,10 @@ class IPCThreadState;
 class ProcessState : public virtual RefBase
 {
 public:
-    static  sp<ProcessState>    self();
-    static  sp<ProcessState>    selfOrNull();
+    static  sp<ProcessState>    self(bool isHost=false);
+    static  sp<ProcessState>    selfOrNull(bool isHost=false);
     // Note: don't call self() or selfOrNull() before initWithMmapSize()
-    static  sp<ProcessState>    initWithMmapSize(size_t mmapSize); // size in bytes
-
-    static  bool                isHostBinder();
-    static  void                switchToHostBinder(bool value);
+    static  sp<ProcessState>    initWithMmapSize(size_t mmapSize, bool isHost=false); // size in bytes
 
             void                setContextObject(const sp<IBinder>& object);
             sp<IBinder>         getContextObject(const sp<IBinder>& caller);
@@ -93,9 +90,11 @@ public:
             // before any threads are spawned.
             void setCallRestriction(CallRestriction restriction);
 
+            bool                isHostBinder();
+
 private:
     friend class IPCThreadState;
-            explicit            ProcessState(size_t mmap_size);
+            explicit            ProcessState(size_t mmap_size, bool isHost);
                                 ~ProcessState();
 
                                 ProcessState(const ProcessState& o);
@@ -141,6 +140,8 @@ private:
             const size_t        mMmapSize;
 
             CallRestriction     mCallRestriction;
+
+            bool                mIsHost;
 };
 
 }; // namespace hardware

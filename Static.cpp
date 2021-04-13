@@ -76,7 +76,6 @@ TextOutput& aerr(gStderrTextOutput);
 Mutex& gProcessMutex = *new Mutex;
 sp<ProcessState> gProcess;
 sp<ProcessState> gHostProcess;
-bool gIsHost;
 
 }   // namespace hardware
 }   // namespace android

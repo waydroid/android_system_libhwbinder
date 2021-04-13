@@ -1949,7 +1949,7 @@ void Parcel::freeDataNoInit()
     if (mOwner) {
         LOG_ALLOC("Parcel %p: freeing other owner data", this);
         //ALOGI("Freeing data ref of %p (pid=%d)", this, getpid());
-        mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie);
+        mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie, mIsHost);
     } else {
         LOG_ALLOC("Parcel %p: freeing allocated data", this);
         releaseObjects();
@@ -2098,7 +2098,7 @@ status_t Parcel::continueWrite(size_t desired)
             memcpy(objects, mObjects, objectsSize*sizeof(binder_size_t));
         }
         //ALOGI("Freeing data ref of %p (pid=%d)", this, getpid());
-        mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie);
+        mOwner(this, mData, mDataSize, mObjects, mObjectsSize, mOwnerCookie, mIsHost);
         mOwner = nullptr;
 
         LOG_ALLOC("Parcel %p: taking ownership of %zu capacity", this, desired);
@@ -2216,6 +2216,7 @@ void Parcel::initState()
     mOwner = nullptr;
     clearCache();
     mNumRef = 0;
+    mIsHost = false;
 
     // racing multiple init leads only to multiple identical write
     if (gMaxFds == 0) {
