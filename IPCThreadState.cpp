@@ -282,6 +282,11 @@ static pthread_key_t gHostTLS = 0;
 static bool gShutdown = false;
 static bool gHostShutdown = false;
 
+IPCThreadState* IPCThreadState::self()
+{
+    return IPCThreadState::self(false);
+}
+
 IPCThreadState* IPCThreadState::self(bool isHost)
 {
     if (isHost) {

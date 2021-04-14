@@ -35,7 +35,8 @@ class IPCThreadState;
 class ProcessState : public virtual RefBase
 {
 public:
-    static  sp<ProcessState>    self(bool isHost=false);
+    static  sp<ProcessState>    self();
+    static  sp<ProcessState>    self(bool isHost);
     static  sp<ProcessState>    selfOrNull(bool isHost=false);
     // Note: don't call self() or selfOrNull() before initWithMmapSize()
     static  sp<ProcessState>    initWithMmapSize(size_t mmapSize, bool isHost=false); // size in bytes

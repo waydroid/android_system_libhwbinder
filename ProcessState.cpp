@@ -66,6 +66,11 @@ protected:
     const bool mIsMain;
 };
 
+sp<ProcessState> ProcessState::self()
+{
+    return ProcessState::self(false);
+}
+
 sp<ProcessState> ProcessState::self(bool isHost)
 {
     Mutex::Autolock _l(gProcessMutex);

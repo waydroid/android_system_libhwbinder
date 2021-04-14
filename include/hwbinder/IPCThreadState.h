@@ -38,7 +38,8 @@ namespace hardware {
 class IPCThreadState
 {
 public:
-    static  IPCThreadState*     self(bool isHost=false);
+    static  IPCThreadState*     self();
+    static  IPCThreadState*     self(bool isHost);
     static  IPCThreadState*     selfOrNull(bool isHost=false);  // self(), but won't instantiate
     static  IPCThreadState*     selfForHost();
 
