@@ -83,6 +83,7 @@ public:
             void                decWeakHandle(int32_t handle);
             status_t            attemptIncStrongHandle(int32_t handle);
     static  void                expungeHandle(int32_t handle, IBinder* binder);
+    static  void                expungeHandle(int32_t handle, IBinder* binder, bool isHost);
             status_t            requestDeathNotification(   int32_t handle,
                                                             BpHwBinder* proxy);
             status_t            clearDeathNotification( int32_t handle,

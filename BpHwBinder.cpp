@@ -283,7 +283,7 @@ BpHwBinder::~BpHwBinder()
     }
 
     if (ipc) {
-        ipc->expungeHandle(mHandle, this);
+        ipc->expungeHandle(mHandle, this, mIsHostHwBinder);
         ipc->decWeakHandle(mHandle);
     }
 }

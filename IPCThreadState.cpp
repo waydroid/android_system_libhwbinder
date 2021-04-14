@@ -815,6 +815,14 @@ void IPCThreadState::expungeHandle(int32_t handle, IBinder* binder)
     self()->mProcess->expungeHandle(handle, binder);  // NOLINT
 }
 
+void IPCThreadState::expungeHandle(int32_t handle, IBinder* binder, bool isHost)
+{
+#if LOG_REFCOUNTS
+    printf("IPCThreadState::expungeHandle(%ld)\n", handle);
+#endif
+    self(isHost)->mProcess->expungeHandle(handle, binder); // NOLINT
+}
+
 status_t IPCThreadState::requestDeathNotification(int32_t handle, BpHwBinder* proxy)
 {
     mOut.writeInt32(BC_REQUEST_DEATH_NOTIFICATION);
