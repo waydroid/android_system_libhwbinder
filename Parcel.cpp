@@ -345,8 +345,14 @@ static inline bool isBuffer(const binder_buffer_object& obj) {
 // ---------------------------------------------------------------------------
 
 Parcel::Parcel()
+    : Parcel(false)
 {
-    LOG_ALLOC("Parcel %p: constructing", this);
+}
+
+Parcel::Parcel(bool useHostHwBinder)
+{
+    LOG_ALLOC("Parcel %p: constructing, useHostHwBinder=%d", this, useHostHwBinder);
+    mIsHost = useHostHwBinder;
     initState();
 }
 
@@ -2221,7 +2227,6 @@ void Parcel::initState()
     mOwner = nullptr;
     clearCache();
     mNumRef = 0;
-    mIsHost = false;
 
     // racing multiple init leads only to multiple identical write
     if (gMaxFds == 0) {

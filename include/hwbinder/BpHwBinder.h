@@ -55,6 +55,8 @@ public:
 
     virtual BpHwBinder*   remoteBinder();
 
+            bool        isHostHwBinder();
+
             status_t    setConstantData(const void* data, size_t size);
             void        sendObituary();
                         // This refcount includes:

@@ -51,6 +51,13 @@ BpHwBinder* IBinder::remoteBinder()
     return nullptr;
 }
 
+bool IBinder::isHostHwBinder()
+{
+    auto binder = remoteBinder();
+    if (binder == nullptr) return false;
+    return binder->isHostHwBinder();
+}
+
 bool IBinder::checkSubclass(const void* /*subclassID*/) const
 {
     return false;

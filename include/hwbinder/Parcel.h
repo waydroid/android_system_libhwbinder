@@ -45,6 +45,7 @@ class Parcel {
 public:
 
                         Parcel();
+                        Parcel(bool useHostHwBinder);
                         ~Parcel();
 
     const uint8_t*      data() const;

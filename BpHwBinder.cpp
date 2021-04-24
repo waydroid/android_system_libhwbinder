@@ -261,6 +261,11 @@ BpHwBinder* BpHwBinder::remoteBinder()
     return this;
 }
 
+bool BpHwBinder::isHostHwBinder()
+{
+    return mIsHostHwBinder;
+}
+
 BpHwBinder::~BpHwBinder()
 {
     ALOGV("Destroying BpHwBinder %p handle %d\n", this, mHandle);

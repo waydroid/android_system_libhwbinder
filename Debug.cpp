@@ -301,7 +301,8 @@ void printHexData(int32_t indent, const void *buf, size_t length,
 }
 
 ssize_t getHWBinderKernelReferences(size_t count, uintptr_t* buf) {
-    sp<ProcessState> proc = ProcessState::selfOrNull();
+    const bool useHostHwBinder = false;
+    sp<ProcessState> proc = ProcessState::selfOrNull(useHostHwBinder);
     if (proc.get() == nullptr) {
         return 0;
     }

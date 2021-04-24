@@ -134,6 +134,7 @@ public:
 
     virtual BHwBinder*        localBinder();
     virtual BpHwBinder*       remoteBinder();
+    virtual bool              isHostHwBinder();
 
 protected:
     virtual          ~IBinder();

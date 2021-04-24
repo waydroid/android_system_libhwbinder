@@ -30,6 +30,7 @@ public:
             IInterface();
             static sp<IBinder>  asBinder(const IInterface*);
             static sp<IBinder>  asBinder(const sp<IInterface>&);
+            static bool         isHostHwBinder(const IInterface* iface);
 protected:
     virtual                     ~IInterface();
     virtual IBinder*            onAsBinder() = 0;

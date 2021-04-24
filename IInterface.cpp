@@ -17,6 +17,7 @@
 #define LOG_TAG "hw-IInterface"
 #include <utils/Log.h>
 #include <hwbinder/IInterface.h>
+#include <hwbinder/BpHwBinder.h>
 
 namespace android {
 namespace hardware {
@@ -42,6 +43,16 @@ sp<IBinder> IInterface::asBinder(const sp<IInterface>& iface)
 {
     if (iface == nullptr) return nullptr;
     return iface->onAsBinder();
+}
+
+// static
+bool IInterface::isHostHwBinder(const IInterface* iface)
+{
+    if (iface == nullptr) return false;
+    auto remoteBinder = const_cast<IInterface*>(iface)->onAsBinder()->remoteBinder();
+    if (remoteBinder == nullptr) return false;
+
+    return remoteBinder->isHostHwBinder();
 }
 
 
